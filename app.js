@@ -17,11 +17,12 @@ const goalOptions = {
   ],
 };
 
-const weekdayNames = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
+const weekdayNames = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const state = {
   plan: [],
   activeIndex: 0,
   profile: {},
+  planStartDate: null,
   checkins: JSON.parse(localStorage.getItem("forgeCheckins") || "{}"),
 };
 
@@ -54,7 +55,7 @@ const strengthSessions = [
     focus: "Empurrar | Hipertrofia",
     exercises: [
       ex("Supino reto", "4x8-10", "90s", "RPE 8", "Escápulas firmes, pés no chão e barra descendo controlada ao meio do peito."),
-      ex("Desenvolvimento militar", "3x8-10", "90s", "RPE 8", "Contraia glúteos e abdômen para evitar compensar a lombar."),
+      ex("Desenvolvimento militar", "3x8-10", "90s", "RPE 8", "Contraia glúteos e abdômen para proteger a lombar."),
       ex("Supino inclinado com halteres", "3x10-12", "75s", "RPE 8", "Desça até alongar o peitoral e suba sem bater os halteres."),
       ex("Elevação lateral", "4x12-15", "45s", "RPE 9", "Cotovelos levemente flexionados e movimento sem impulso."),
       ex("Tríceps corda", "3x12-15", "60s", "RPE 8", "Abra a corda no final e mantenha os cotovelos parados."),
@@ -216,19 +217,26 @@ function ex(name, sets, rest, intensity, detail) {
 
 function init() {
   updateGoalOptions();
+  showPage("welcomePage");
+  $("startForge").addEventListener("click", () => showPage("formPage"));
+  $("backToIntro").addEventListener("click", () => showPage("welcomePage"));
+  $("newWorkoutBtn").addEventListener("click", () => showPage("formPage"));
   $("modality").addEventListener("change", updateGoalOptions);
   $("profileForm").addEventListener("submit", (event) => {
     event.preventDefault();
     generatePlan();
   });
-  $("generateTop").addEventListener("click", generatePlan);
-  $("exportTop").addEventListener("click", exportWorkout);
   $("exportBtn").addEventListener("click", exportWorkout);
   $("checkInBtn").addEventListener("click", checkIn);
   $("prevDay").addEventListener("click", () => changeDay(-1));
   $("nextDay").addEventListener("click", () => changeDay(1));
   $("clearProgress").addEventListener("click", clearProgress);
-  generatePlan();
+}
+
+function showPage(pageId) {
+  document.querySelectorAll(".page").forEach((page) => {
+    page.classList.toggle("page-active", page.id === pageId);
+  });
 }
 
 function updateGoalOptions() {
@@ -253,6 +261,7 @@ function readProfile() {
 
 function generatePlan() {
   state.profile = readProfile();
+  state.planStartDate = stripTime(new Date());
   const totalDays = state.profile.length === "monthly" ? 28 : 7;
   const sessions = chooseSessions(state.profile);
   state.plan = Array.from({ length: totalDays }, (_, index) => buildDay(index, sessions));
@@ -260,6 +269,7 @@ function generatePlan() {
   renderWorkout();
   renderCalendar();
   updateAlert();
+  showPage("dashboardPage");
 }
 
 function chooseSessions(profile) {
@@ -321,14 +331,16 @@ function adaptRunSessions(profile) {
 }
 
 function buildDay(index, sessions) {
-  const trainingDays = state.profile.days;
-  const dayOfWeek = index % 7;
-  const restSlots = trainingDays === 6 ? [0] : trainingDays === 5 ? [0, 4] : trainingDays === 4 ? [0, 3, 6] : [0, 2, 4, 6];
+  const date = addDays(state.planStartDate, index);
+  const dayOfWeek = date.getDay();
+  const restSlots = state.profile.days === 6 ? [0] : state.profile.days === 5 ? [0, 4] : state.profile.days === 4 ? [0, 3, 6] : [0, 2, 4, 6];
   const isRest = restSlots.includes(dayOfWeek);
   const week = Math.floor(index / 7) + 1;
   if (isRest) {
     return {
-      dateLabel: `Semana ${week} · ${weekdayNames[dayOfWeek]}`,
+      date,
+      dateKey: isoDate(date),
+      dateLabel: formatDateLabel(date, week),
       title: "Recuperação ativa",
       focus: "Mobilidade, caminhada leve e sono",
       isRest: true,
@@ -338,9 +350,11 @@ function buildDay(index, sessions) {
       ],
     };
   }
-  const trainedBefore = Array.from({ length: index + 1 }, (_, i) => i).filter((i) => !restSlots.includes(i % 7)).length - 1;
+  const trainedBefore = Array.from({ length: index + 1 }, (_, i) => !restSlots.includes(addDays(state.planStartDate, i).getDay())).filter(Boolean).length - 1;
   const session = cloneSession(sessions[trainedBefore % sessions.length]);
-  session.dateLabel = `Semana ${week} · ${weekdayNames[dayOfWeek]}`;
+  session.date = date;
+  session.dateKey = isoDate(date);
+  session.dateLabel = formatDateLabel(date, week);
   session.progression = progressionText(week);
   return session;
 }
@@ -355,13 +369,14 @@ function progressionText(week) {
 function renderWorkout() {
   const day = state.plan[state.activeIndex];
   if (!day) return;
-  $("planTitle").textContent = `${state.profile.name} · ${day.title}`;
+  $("dashboardTitle").textContent = `${state.profile.name} · ${labelFor(state.profile.modality)}`;
+  $("activeDateLabel").textContent = day.dateLabel;
+  $("planTitle").textContent = day.title;
   $("workoutMeta").innerHTML = [
-    day.dateLabel,
-    labelFor(state.profile.modality),
     labelFor(state.profile.goal),
-    `${state.profile.level}`,
+    state.profile.level,
     `${state.profile.duration} min`,
+    day.focus,
     day.progression || "Recuperação inteligente",
   ]
     .map((item) => `<span>${item}</span>`)
@@ -389,23 +404,46 @@ function renderWorkout() {
 }
 
 function renderCalendar() {
-  $("calendar").innerHTML = state.plan
-    .map((day, index) => {
-      const status = state.checkins[calendarKey(index)] ? "done" : isPastIndex(index) && !day.isRest ? "missed" : "";
-      const statusText = state.checkins[calendarKey(index)] ? "Concluído" : day.isRest ? "Recuperação" : "Pendente";
+  if (!state.planStartDate) return;
+  const month = state.planStartDate.getMonth();
+  const year = state.planStartDate.getFullYear();
+  const firstDay = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const planByDate = new Map(state.plan.map((day, index) => [day.dateKey, { day, index }]));
+  const blanks = Array.from({ length: firstDay.getDay() }, () => `<div class="calendar-day empty"></div>`);
+  const days = Array.from({ length: daysInMonth }, (_, dayNumber) => {
+    const date = new Date(year, month, dayNumber + 1);
+    const dateKey = isoDate(date);
+    const planned = planByDate.get(dateKey);
+    if (!planned) {
       return `
-        <button class="calendar-day ${status}" data-index="${index}">
-          <strong>Dia ${index + 1}</strong>
-          <span>${day.title}</span>
-          <span>${statusText}</span>
+        <button class="calendar-day" disabled>
+          <strong>${dayNumber + 1}</strong>
+          <span>Fora do plano</span>
         </button>
       `;
-    })
-    .join("");
+    }
+    const { day, index } = planned;
+    const status = state.checkins[calendarKey(index)] ? "done" : isPastDate(date) && !day.isRest ? "missed" : "";
+    const todayClass = dateKey === isoDate(new Date()) ? "today" : "";
+    const activeClass = index === state.activeIndex ? "active" : "";
+    const statusText = state.checkins[calendarKey(index)] ? "Concluído" : day.isRest ? "Recuperação" : "Pendente";
+    return `
+      <button class="calendar-day ${status} ${todayClass} ${activeClass}" data-index="${index}">
+        <strong>${dayNumber + 1}</strong>
+        <span>${day.title}</span>
+        <span>${statusText}</span>
+      </button>
+    `;
+  });
+  $("calendarTitle").textContent = `${monthName(state.planStartDate)} ${year}`;
+  $("calendar").innerHTML = [...blanks, ...days].join("");
   document.querySelectorAll(".calendar-day").forEach((button) => {
     button.addEventListener("click", () => {
+      if (!button.dataset.index) return;
       state.activeIndex = Number(button.dataset.index);
       renderWorkout();
+      renderCalendar();
     });
   });
 }
@@ -425,21 +463,22 @@ function clearProgress() {
 }
 
 function updateAlert() {
-  const missed = state.plan.filter((day, index) => isPastIndex(index) && !day.isRest && !state.checkins[calendarKey(index)]).length;
-  const streak = Object.keys(state.checkins).length;
+  const missed = state.plan.filter((day, index) => isPastDate(day.date) && !day.isRest && !state.checkins[calendarKey(index)]).length;
+  const checkinsForPlan = state.plan.filter((_, index) => state.checkins[calendarKey(index)]).length;
   if (missed > 0) {
     $("alertTitle").textContent = `${missed} treino(s) ficaram para trás.`;
     $("alertText").textContent = "Volte hoje com uma sessão mais leve. Constância vence perfeição.";
     return;
   }
-  $("alertTitle").textContent = streak ? `${streak} check-in(s) registrados.` : "Pronto para forjar constância.";
-  $("alertText").textContent = streak ? "Boa. Agora mantenha o próximo treino simples e bem feito." : "Faça check-in hoje e mantenha a sequência viva.";
+  $("alertTitle").textContent = checkinsForPlan ? `${checkinsForPlan} check-in(s) registrados.` : "Pronto para forjar constância.";
+  $("alertText").textContent = checkinsForPlan ? "Boa. Agora mantenha o próximo treino simples e bem feito." : "Faça check-in hoje e mantenha a sequência viva.";
 }
 
 function changeDay(delta) {
   if (!state.plan.length) return;
   state.activeIndex = Math.min(Math.max(state.activeIndex + delta, 0), state.plan.length - 1);
   renderWorkout();
+  renderCalendar();
 }
 
 function exportWorkout() {
@@ -518,11 +557,34 @@ function labelFor(value) {
 }
 
 function calendarKey(index) {
-  return `${state.profile.name}-${state.profile.modality}-${state.profile.goal}-${index}`;
+  const day = state.plan[index];
+  return `${state.profile.name}-${state.profile.modality}-${state.profile.goal}-${day?.dateKey || index}`;
 }
 
-function isPastIndex(index) {
-  return index < state.activeIndex;
+function stripTime(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function addDays(date, amount) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + amount);
+  return next;
+}
+
+function isoDate(date) {
+  return stripTime(date).toISOString().slice(0, 10);
+}
+
+function isPastDate(date) {
+  return stripTime(date) < stripTime(new Date());
+}
+
+function formatDateLabel(date, week) {
+  return `Semana ${week} · ${weekdayNames[date.getDay()]} · ${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthName(date) {
+  return date.toLocaleDateString("pt-BR", { month: "long" }).replace(/^\w/, (letter) => letter.toUpperCase());
 }
 
 function cloneSession(session) {
@@ -539,4 +601,3 @@ function slugify(text) {
 }
 
 init();
-
