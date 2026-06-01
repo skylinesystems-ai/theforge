@@ -22,13 +22,45 @@
         </div>
       </section>
 
+      <section id="authPage" class="page auth-page">
+        <main class="auth-layout">
+          <section class="panel auth-panel">
+            <div class="brand-mark"><span>TF</span></div>
+            <div class="section-heading">
+              <p class="eyebrow">Conta The Forge</p>
+              <h2>Entre para salvar tudo na nuvem</h2>
+              <p class="muted-text">Seu treino, calendário e check-ins ficam vinculados ao seu e-mail.</p>
+            </div>
+            <form id="authForm" class="auth-form">
+              <label>
+                E-mail
+                <input id="authEmail" type="email" autocomplete="email" placeholder="cliente@email.com" required />
+              </label>
+              <label>
+                Senha
+                <input id="authPassword" type="password" autocomplete="current-password" placeholder="Mínimo 6 caracteres" required />
+              </label>
+              <div class="button-row">
+                <button class="primary-btn" type="submit" id="loginBtn">Entrar</button>
+                <button class="ghost-btn" type="button" id="signupBtn">Criar conta</button>
+              </div>
+              <p id="authMessage" class="status-message"></p>
+            </form>
+            <button class="ghost-btn" id="skipCloudBtn">Continuar sem nuvem</button>
+          </section>
+        </main>
+      </section>
+
       <section id="formPage" class="page form-page">
         <header class="topbar">
           <div>
             <p class="eyebrow">The Forge</p>
             <h2>Formulário de forja</h2>
           </div>
-          <button class="ghost-btn" id="backToIntro">Voltar</button>
+          <div class="button-row">
+            <span class="cloud-status" id="cloudStatus">Modo local</span>
+            <button class="ghost-btn" id="backToIntro">Voltar</button>
+          </div>
         </header>
 
         <main class="page-content">
@@ -121,8 +153,10 @@
             <h2 id="dashboardTitle">Treino do dia</h2>
           </div>
           <div class="button-row">
+            <span class="cloud-status" id="dashboardCloudStatus">Modo local</span>
             <button class="ghost-btn" id="newWorkoutBtn">Novo treino</button>
             <button class="dark-btn" id="exportBtn">Exportar PNG</button>
+            <button class="ghost-btn" id="logoutBtn">Sair</button>
           </div>
         </header>
 
@@ -175,6 +209,6 @@
     </div>
 
     <canvas id="exportCanvas" width="1080" height="1350" aria-hidden="true"></canvas>
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
   </body>
 </html>
