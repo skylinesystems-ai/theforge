@@ -1,1 +1,172 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The Forge | Sistema de Treino</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand-mark">
+          <span>TF</span>
+        </div>
+        <div>
+          <p class="eyebrow">The Forge</p>
+          <h1>Olá, seja bem-vindo ao seu sistema de treino personalizado.</h1>
+          <p class="creator">Criado por Mario Farias</p>
+        </div>
+        <nav class="nav-stack" aria-label="Navegação principal">
+          <a href="#formulario">Perfil</a>
+          <a href="#treino">Treino</a>
+          <a href="#calendario">Calendário</a>
+          <a href="#fontes">Bases</a>
+        </nav>
+        <div class="motivation-card">
+          <p class="label">Alerta Forge</p>
+          <strong id="alertTitle">Pronto para forjar constância.</strong>
+          <span id="alertText">Faça check-in hoje e mantenha a sequência viva.</span>
+        </div>
+      </aside>
+
+      <main>
+        <section class="hero-band">
+          <div>
+            <p class="eyebrow">Sistema simples, forte e direto</p>
+            <h2>Treinos completos para musculação, corrida e casa.</h2>
+            <p>
+              Preencha o perfil do cliente e gere uma semana ou um mês de treino com exercícios,
+              séries, repetições, ritmo, descanso e links de execução.
+            </p>
+          </div>
+          <div class="hero-actions">
+            <button class="primary-btn" id="generateTop">Gerar treino</button>
+            <button class="ghost-btn" id="exportTop">Exportar treino do dia</button>
+          </div>
+        </section>
+
+        <section id="formulario" class="panel">
+          <div class="section-heading">
+            <p class="eyebrow">Perfil do cliente</p>
+            <h2>Formulário rápido</h2>
+          </div>
+          <form id="profileForm" class="profile-grid">
+            <label>
+              Nome
+              <input id="clientName" type="text" value="Cliente Forge" required />
+            </label>
+            <label>
+              Modalidade
+              <select id="modality">
+                <option value="musculacao">Musculação</option>
+                <option value="corrida">Corrida</option>
+                <option value="casa">Treino em casa sem equipamentos</option>
+              </select>
+            </label>
+            <label>
+              Objetivo
+              <select id="goal"></select>
+            </label>
+            <label>
+              Nível
+              <select id="level">
+                <option value="iniciante">Iniciante</option>
+                <option value="intermediario">Intermediário</option>
+                <option value="avancado">Avançado</option>
+              </select>
+            </label>
+            <label>
+              Frequência semanal
+              <select id="daysPerWeek">
+                <option value="3">3 dias</option>
+                <option value="4">4 dias</option>
+                <option value="5" selected>5 dias</option>
+                <option value="6">6 dias</option>
+              </select>
+            </label>
+            <label>
+              Plano
+              <select id="planLength">
+                <option value="weekly">Semanal</option>
+                <option value="monthly">Mensal</option>
+              </select>
+            </label>
+            <label>
+              Tempo por sessão
+              <select id="duration">
+                <option value="30">30 minutos</option>
+                <option value="45" selected>45 minutos</option>
+                <option value="60">60 minutos</option>
+                <option value="75">75 minutos</option>
+              </select>
+            </label>
+            <label>
+              Restrições ou observações
+              <textarea id="notes" rows="3" placeholder="Ex.: dor no joelho, pouco tempo, preferência por esteira"></textarea>
+            </label>
+            <button class="primary-btn span-2" type="submit">Montar treino personalizado</button>
+          </form>
+        </section>
+
+        <section id="treino" class="panel">
+          <div class="section-heading row-heading">
+            <div>
+              <p class="eyebrow">Plano gerado</p>
+              <h2 id="planTitle">Seu treino aparecerá aqui</h2>
+            </div>
+            <div class="button-row">
+              <button class="ghost-btn" id="prevDay" aria-label="Dia anterior">‹</button>
+              <button class="ghost-btn" id="nextDay" aria-label="Próximo dia">›</button>
+              <button class="primary-btn" id="checkInBtn">Check-in</button>
+              <button class="dark-btn" id="exportBtn">Exportar PNG</button>
+            </div>
+          </div>
+          <div id="workoutMeta" class="meta-strip"></div>
+          <div id="workoutList" class="exercise-list empty-state">
+            Preencha o formulário e gere seu plano The Forge.
+          </div>
+        </section>
+
+        <section id="calendario" class="panel">
+          <div class="section-heading row-heading">
+            <div>
+              <p class="eyebrow">Progresso</p>
+              <h2>Calendário de check-ins</h2>
+            </div>
+            <button class="ghost-btn" id="clearProgress">Limpar progresso</button>
+          </div>
+          <div id="calendar" class="calendar-grid"></div>
+        </section>
+
+        <section id="fontes" class="panel compact">
+          <div class="section-heading">
+            <p class="eyebrow">Base técnica</p>
+            <h2>Referências usadas no desenho dos treinos</h2>
+          </div>
+          <p>
+            O sistema combina princípios atuais de prescrição de treino: progressão gradual,
+            fortalecimento de grandes grupos musculares, controle de intensidade por RPE,
+            alternância de estímulos e distribuição semanal realista.
+          </p>
+          <div class="source-links">
+            <a href="https://www.cdc.gov/physical-activity-basics/guidelines/adults.html" target="_blank" rel="noreferrer">CDC: diretrizes para adultos</a>
+            <a href="https://acsm.org/education-resources/trending-topics-resources/physical-activity-guidelines/" target="_blank" rel="noreferrer">ACSM: atividade física</a>
+            <a href="https://acsm.org/resistance-training-guidelines-update-2026/" target="_blank" rel="noreferrer">ACSM: treino resistido</a>
+          </div>
+          <p class="safety-note">
+            Em caso de dor, tontura, lesão, gravidez, doença cardiovascular ou condição clínica relevante,
+            o cliente deve buscar liberação profissional antes de iniciar ou intensificar os treinos.
+          </p>
+        </section>
+      </main>
+    </div>
+
+    <canvas id="exportCanvas" width="1080" height="1350" aria-hidden="true"></canvas>
+    <script src="app.js"></script>
+  </body>
+</html>
 
