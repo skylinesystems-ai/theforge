@@ -1,3 +1,20 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import {
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+  getAuth,
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import {
+  doc,
+  getDoc,
+  getFirestore,
+  serverTimestamp,
+  setDoc,
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import { firebaseConfig } from "./firebase-config.js";
+
 const goalOptions = {
   musculacao: [
     ["hipertrofia", "Hipertrofia"],
@@ -24,9 +41,13 @@ const state = {
   profile: {},
   planStartDate: null,
   checkins: JSON.parse(localStorage.getItem("forgeCheckins") || "{}"),
+  currentUser: null,
+  cloudReady: false,
 };
 
 const $ = (id) => document.getElementById(id);
+let auth = null;
+let db = null;
 
 const movementLinks = {
   "Agachamento livre": "https://www.youtube.com/results?search_query=como+fazer+agachamento+livre+correto",
@@ -217,10 +238,18 @@ function ex(name, sets, rest, intensity, detail) {
 
 function init() {
   updateGoalOptions();
+  setupFirebase();
   showPage("welcomePage");
-  $("startForge").addEventListener("click", () => showPage("formPage"));
+  $("startForge").addEventListener("click", () => showPage(state.currentUser || !state.cloudReady ? "formPage" : "authPage"));
+  $("authForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    loginClient();
+  });
+  $("signupBtn").addEventListener("click", createClientAccount);
+  $("skipCloudBtn").addEventListener("click", () => showPage("formPage"));
   $("backToIntro").addEventListener("click", () => showPage("welcomePage"));
   $("newWorkoutBtn").addEventListener("click", () => showPage("formPage"));
+  $("logoutBtn").addEventListener("click", logoutClient);
   $("modality").addEventListener("change", updateGoalOptions);
   $("profileForm").addEventListener("submit", (event) => {
     event.preventDefault();
@@ -237,6 +266,96 @@ function showPage(pageId) {
   document.querySelectorAll(".page").forEach((page) => {
     page.classList.toggle("page-active", page.id === pageId);
   });
+}
+
+function setupFirebase() {
+  if (!isFirebaseConfigured()) {
+    setCloudStatus("Modo local");
+    setAuthMessage("Configure o Firebase para ativar salvamento em nuvem.", "error");
+    return;
+  }
+
+  try {
+    const app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+    state.cloudReady = true;
+    setCloudStatus("Nuvem pronta");
+    onAuthStateChanged(auth, async (user) => {
+      state.currentUser = user;
+      if (!user) {
+        setCloudStatus("Nuvem pronta");
+        return;
+      }
+
+      setCloudStatus(`Conectado: ${user.email}`);
+      await loadCloudState();
+    });
+  } catch (error) {
+    state.cloudReady = false;
+    setCloudStatus("Modo local");
+    setAuthMessage(firebaseErrorMessage(error), "error");
+  }
+}
+
+function isFirebaseConfigured() {
+  return firebaseConfig.projectId && !firebaseConfig.projectId.includes("COLE_");
+}
+
+async function loginClient() {
+  if (!canUseCloud()) return;
+  setAuthMessage("Entrando...", "");
+  try {
+    await signInWithEmailAndPassword(auth, $("authEmail").value.trim(), $("authPassword").value);
+    setAuthMessage("Login realizado.", "success");
+    showPage("formPage");
+  } catch (error) {
+    setAuthMessage(firebaseErrorMessage(error), "error");
+  }
+}
+
+async function createClientAccount() {
+  if (!canUseCloud()) return;
+  setAuthMessage("Criando conta...", "");
+  try {
+    await createUserWithEmailAndPassword(auth, $("authEmail").value.trim(), $("authPassword").value);
+    setAuthMessage("Conta criada e conectada.", "success");
+    showPage("formPage");
+  } catch (error) {
+    setAuthMessage(firebaseErrorMessage(error), "error");
+  }
+}
+
+async function logoutClient() {
+  if (!auth) {
+    showPage("welcomePage");
+    return;
+  }
+  await signOut(auth);
+  state.currentUser = null;
+  state.plan = [];
+  state.profile = {};
+  state.planStartDate = null;
+  state.checkins = {};
+  localStorage.removeItem("forgeCheckins");
+  showPage("welcomePage");
+}
+
+function canUseCloud() {
+  if (state.cloudReady && auth && db) return true;
+  setAuthMessage("Firebase ainda não foi configurado. Use o modo local ou preencha firebase-config.js.", "error");
+  return false;
+}
+
+function setAuthMessage(message, type) {
+  const target = $("authMessage");
+  target.textContent = message;
+  target.className = `status-message ${type || ""}`.trim();
+}
+
+function setCloudStatus(message) {
+  $("cloudStatus").textContent = message;
+  $("dashboardCloudStatus").textContent = message;
 }
 
 function updateGoalOptions() {
@@ -259,7 +378,7 @@ function readProfile() {
   };
 }
 
-function generatePlan() {
+async function generatePlan() {
   state.profile = readProfile();
   state.planStartDate = stripTime(new Date());
   const totalDays = state.profile.length === "monthly" ? 28 : 7;
@@ -270,6 +389,7 @@ function generatePlan() {
   renderCalendar();
   updateAlert();
   showPage("dashboardPage");
+  await saveCloudState();
 }
 
 function chooseSessions(profile) {
@@ -444,6 +564,7 @@ function renderCalendar() {
       state.activeIndex = Number(button.dataset.index);
       renderWorkout();
       renderCalendar();
+      saveCloudState();
     });
   });
 }
@@ -453,6 +574,7 @@ function checkIn() {
   localStorage.setItem("forgeCheckins", JSON.stringify(state.checkins));
   renderCalendar();
   updateAlert();
+  saveCloudState();
 }
 
 function clearProgress() {
@@ -460,6 +582,7 @@ function clearProgress() {
   localStorage.removeItem("forgeCheckins");
   renderCalendar();
   updateAlert();
+  saveCloudState();
 }
 
 function updateAlert() {
@@ -474,11 +597,84 @@ function updateAlert() {
   $("alertText").textContent = checkinsForPlan ? "Boa. Agora mantenha o próximo treino simples e bem feito." : "Faça check-in hoje e mantenha a sequência viva.";
 }
 
+async function saveCloudState() {
+  localStorage.setItem("forgeCheckins", JSON.stringify(state.checkins));
+  if (!state.cloudReady || !state.currentUser || !db || !state.plan.length) return;
+
+  const payload = {
+    profile: state.profile,
+    planStartDate: isoDate(state.planStartDate),
+    activeIndex: state.activeIndex,
+    checkins: state.checkins,
+    plan: state.plan.map(serializeDay),
+    updatedAt: serverTimestamp(),
+  };
+
+  await setDoc(doc(db, "users", state.currentUser.uid), {
+    email: state.currentUser.email,
+    displayName: state.profile.name || state.currentUser.email,
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+
+  await setDoc(doc(db, "users", state.currentUser.uid, "plans", "current"), payload, { merge: true });
+}
+
+async function loadCloudState() {
+  if (!state.cloudReady || !state.currentUser || !db) return;
+
+  const snapshot = await getDoc(doc(db, "users", state.currentUser.uid, "plans", "current"));
+  if (!snapshot.exists()) return;
+
+  const data = snapshot.data();
+  state.profile = data.profile || {};
+  state.planStartDate = data.planStartDate ? parseDate(data.planStartDate) : stripTime(new Date());
+  state.activeIndex = Number(data.activeIndex || 0);
+  state.checkins = data.checkins || {};
+  state.plan = Array.isArray(data.plan) ? data.plan.map(deserializeDay) : [];
+  localStorage.setItem("forgeCheckins", JSON.stringify(state.checkins));
+
+  if (state.plan.length) {
+    hydrateFormFromProfile();
+    renderWorkout();
+    renderCalendar();
+    updateAlert();
+    showPage("dashboardPage");
+  }
+}
+
+function serializeDay(day) {
+  return {
+    ...day,
+    date: isoDate(day.date),
+  };
+}
+
+function deserializeDay(day) {
+  return {
+    ...day,
+    date: parseDate(day.date || day.dateKey),
+  };
+}
+
+function hydrateFormFromProfile() {
+  if (!state.profile.name) return;
+  $("clientName").value = state.profile.name;
+  $("modality").value = state.profile.modality;
+  updateGoalOptions();
+  $("goal").value = state.profile.goal;
+  $("level").value = state.profile.level;
+  $("daysPerWeek").value = String(state.profile.days);
+  $("planLength").value = state.profile.length;
+  $("duration").value = String(state.profile.duration);
+  $("notes").value = state.profile.notes || "";
+}
+
 function changeDay(delta) {
   if (!state.plan.length) return;
   state.activeIndex = Math.min(Math.max(state.activeIndex + delta, 0), state.plan.length - 1);
   renderWorkout();
   renderCalendar();
+  saveCloudState();
 }
 
 function exportWorkout() {
@@ -575,6 +771,11 @@ function isoDate(date) {
   return stripTime(date).toISOString().slice(0, 10);
 }
 
+function parseDate(value) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
 function isPastDate(date) {
   return stripTime(date) < stripTime(new Date());
 }
@@ -585,6 +786,16 @@ function formatDateLabel(date, week) {
 
 function monthName(date) {
   return date.toLocaleDateString("pt-BR", { month: "long" }).replace(/^\w/, (letter) => letter.toUpperCase());
+}
+
+function firebaseErrorMessage(error) {
+  const messages = {
+    "auth/email-already-in-use": "Este e-mail já tem conta. Use Entrar.",
+    "auth/invalid-email": "Digite um e-mail válido.",
+    "auth/invalid-credential": "E-mail ou senha incorretos.",
+    "auth/weak-password": "Use uma senha com pelo menos 6 caracteres.",
+  };
+  return messages[error.code] || "Não foi possível conectar ao Firebase agora.";
 }
 
 function cloneSession(session) {
