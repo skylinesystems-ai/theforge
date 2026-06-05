@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>The Forge | Sistema de Treino</title>
+    <title>The Forge | Sistema de Treino e Dieta</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -29,7 +29,7 @@
             <div class="section-heading">
               <p class="eyebrow">Conta The Forge</p>
               <h2>Entre para salvar tudo na nuvem</h2>
-              <p class="muted-text">Seu treino, calendário e check-ins ficam vinculados ao seu e-mail.</p>
+              <p class="muted-text">Seu treino, dieta, calendário e check-ins ficam vinculados ao seu e-mail.</p>
             </div>
             <form id="authForm" class="auth-form">
               <label>
@@ -67,8 +67,8 @@
           <section class="panel">
             <div class="section-heading">
               <p class="eyebrow">Perfil do cliente</p>
-              <h2>Monte o treino ideal</h2>
-              <p class="muted-text">Preencha os dados e o sistema gera um plano completo com treino do dia, calendário e check-ins.</p>
+              <h2>Monte o treino e a dieta ideal</h2>
+              <p class="muted-text">Preencha os dados e o sistema gera um plano completo com treino do dia, calendário, check-ins e orientação alimentar.</p>
             </div>
             <form id="profileForm" class="profile-grid">
               <label>
@@ -120,27 +120,68 @@
                   <option value="75">75 minutos</option>
                 </select>
               </label>
+
+              <div class="form-divider span-2">Modo dieta</div>
+              <label>
+                Peso corporal
+                <input id="bodyWeight" type="number" min="35" max="250" step="0.1" value="75" />
+              </label>
+              <label>
+                Estratégia alimentar
+                <select id="dietStyle">
+                  <option value="balanced" selected>Equilibrada</option>
+                  <option value="highProtein">Alta proteína</option>
+                  <option value="plantBased">Plant-based</option>
+                  <option value="lowCarb">Baixo carboidrato estratégico</option>
+                </select>
+              </label>
+              <label>
+                Refeições por dia
+                <select id="mealsPerDay">
+                  <option value="3">3 refeições</option>
+                  <option value="4" selected>4 refeições</option>
+                  <option value="5">5 refeições</option>
+                  <option value="6">6 refeições</option>
+                </select>
+              </label>
+              <label>
+                Preferência alimentar
+                <select id="foodPattern">
+                  <option value="omnivore" selected>Onívora</option>
+                  <option value="vegetarian">Vegetariana</option>
+                  <option value="vegan">Vegana</option>
+                  <option value="lactoseFree">Sem lactose</option>
+                </select>
+              </label>
+              <label class="span-2">
+                Restrições alimentares ou alergias
+                <textarea id="dietRestrictions" rows="3" placeholder="Ex.: intolerância à lactose, diabetes, alergia a amendoim, preferência por comida simples"></textarea>
+              </label>
               <label>
                 Restrições ou observações
                 <textarea id="notes" rows="3" placeholder="Ex.: dor no joelho, pouco tempo, preferência por esteira"></textarea>
               </label>
-              <button class="primary-btn span-2" type="submit">Gerar meu treino</button>
+              <button class="primary-btn span-2" type="submit">Gerar meu treino e dieta</button>
             </form>
           </section>
 
           <section class="panel compact">
             <div class="section-heading">
               <p class="eyebrow">Base técnica</p>
-              <h2>Treinos com progressão clara</h2>
+              <h2>Treinos e dieta com progressão clara</h2>
             </div>
             <p>
-              O sistema usa progressão gradual, alternância de estímulos, RPE, recuperação planejada e exercícios
-              detalhados para musculação, corrida e treino em casa.
+              O sistema usa progressão gradual, alternância de estímulos, RPE, recuperação planejada, exercícios
+              detalhados e recomendações nutricionais para musculação, corrida e treino em casa.
             </p>
             <div class="source-links">
               <a href="https://www.cdc.gov/physical-activity-basics/guidelines/adults.html" target="_blank" rel="noreferrer">CDC</a>
               <a href="https://acsm.org/education-resources/trending-topics-resources/physical-activity-guidelines/" target="_blank" rel="noreferrer">ACSM atividade física</a>
               <a href="https://acsm.org/resistance-training-guidelines-update-2026/" target="_blank" rel="noreferrer">ACSM treino resistido</a>
+              <a href="https://www.gov.br/saude/pt-br/composicao/saps/promocao-da-saude/guias-alimentares/guias-alimentares" target="_blank" rel="noreferrer">Guia Alimentar BR</a>
+              <a href="https://www.who.int/news-room/fact-sheets/detail/healthy-diet" target="_blank" rel="noreferrer">OMS dieta saudável</a>
+              <a href="https://jissn.biomedcentral.com/articles/10.1186/s12970-017-0177-8" target="_blank" rel="noreferrer">ISSN proteína</a>
+              <a href="https://jissn.biomedcentral.com/articles/10.1186/s12970-017-0174-y" target="_blank" rel="noreferrer">ISSN dietas</a>
             </div>
           </section>
         </main>
@@ -205,6 +246,49 @@
             </section>
           </aside>
         </main>
+
+        <section class="dashboard-nutrition">
+          <section class="panel nutrition-panel">
+            <div class="section-heading row-heading">
+              <div>
+                <p class="eyebrow">Dieta Forge</p>
+                <h2 id="nutritionTitle">Plano alimentar base</h2>
+                <p class="muted-text" id="nutritionIntro">Gere um treino para receber a estratégia nutricional.</p>
+              </div>
+              <span class="cloud-status" id="nutritionStatus">Base científica</span>
+            </div>
+
+            <div id="nutritionMetrics" class="nutrition-metrics"></div>
+
+            <div class="nutrition-grid">
+              <article class="nutrition-card">
+                <p class="label">Estratégia</p>
+                <div id="nutritionStrategy"></div>
+              </article>
+
+              <article class="nutrition-card">
+                <p class="label">Prato e alimentos</p>
+                <div id="nutritionFoods"></div>
+              </article>
+
+              <article class="nutrition-card">
+                <p class="label">Timing do treino</p>
+                <div id="nutritionTiming"></div>
+              </article>
+            </div>
+
+            <div class="nutrition-warning" id="nutritionWarning"></div>
+          </section>
+
+          <section class="panel evidence-panel">
+            <div class="section-heading">
+              <p class="eyebrow">Artigos selecionados</p>
+              <h2>Base para dieta de alto nível</h2>
+              <p class="muted-text">Fontes priorizadas por qualidade, aplicação prática e segurança.</p>
+            </div>
+            <div id="nutritionSources" class="nutrition-sources"></div>
+          </section>
+        </section>
       </section>
     </div>
 
