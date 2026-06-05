@@ -49,6 +49,204 @@ const $ = (id) => document.getElementById(id);
 let auth = null;
 let db = null;
 
+const nutritionDefaults = {
+  bodyWeight: 75,
+  dietStyle: "balanced",
+  mealsPerDay: 4,
+  foodPattern: "omnivore",
+  dietRestrictions: "",
+};
+
+const dietStyleLabels = {
+  balanced: "Equilibrada",
+  highProtein: "Alta proteína",
+  plantBased: "Plant-based",
+  lowCarb: "Baixo carboidrato estratégico",
+};
+
+const foodPatternLabels = {
+  omnivore: "Onívora",
+  vegetarian: "Vegetariana",
+  vegan: "Vegana",
+  lactoseFree: "Sem lactose",
+};
+
+const nutritionTargets = {
+  hipertrofia: {
+    energy: "Superávit leve ou manutenção alta: progresso sem ganhar gordura rápido demais.",
+    protein: [1.6, 2.2],
+    carbs: [3, 6],
+    fat: [0.6, 1],
+    focus: "Priorize proteína distribuída, carboidrato ao redor do treino e sono consistente.",
+    tags: ["strength", "protein", "bodycomp"],
+  },
+  forca: {
+    energy: "Manutenção ou superávit leve: força precisa de energia e recuperação.",
+    protein: [1.6, 2.2],
+    carbs: [3, 5],
+    fat: [0.7, 1],
+    focus: "Carboidrato antes do treino pesado e proteína em 3-5 tomadas ao dia.",
+    tags: ["strength", "protein", "timing"],
+  },
+  emagrecimento: {
+    energy: "Déficit moderado: reduza calorias sem cortar proteína nem treino de força.",
+    protein: [1.8, 2.4],
+    carbs: [2, 4],
+    fat: [0.6, 0.9],
+    focus: "Monte pratos ricos em proteína, fibras e alimentos pouco processados.",
+    tags: ["bodycomp", "protein", "general"],
+  },
+  "5k": {
+    energy: "Energia suficiente para treinar bem: evite déficit agressivo em semanas intensas.",
+    protein: [1.4, 1.8],
+    carbs: [4, 6],
+    fat: [0.7, 1],
+    focus: "Carboidrato sustenta ritmo, recuperação e qualidade dos treinos.",
+    tags: ["endurance", "timing", "hydration"],
+  },
+  "10k": {
+    energy: "Manutenção bem abastecida: a corrida responde melhor com carboidrato planejado.",
+    protein: [1.4, 1.8],
+    carbs: [5, 7],
+    fat: [0.7, 1],
+    focus: "Use carboidratos antes dos treinos-chave e reponha energia depois.",
+    tags: ["endurance", "timing", "hydration"],
+  },
+  "21k": {
+    energy: "Base energética alta: longões pedem carboidrato, hidratação e recuperação.",
+    protein: [1.4, 2],
+    carbs: [5, 8],
+    fat: [0.7, 1],
+    focus: "Planeje refeições antes dos longões e reposição rápida no pós-treino.",
+    tags: ["endurance", "timing", "hydration"],
+  },
+  condicionamento: {
+    energy: "Manutenção flexível: ajuste por fome, performance e recuperação.",
+    protein: [1.6, 2],
+    carbs: [3, 6],
+    fat: [0.7, 1],
+    focus: "Combine prato equilibrado com carboidratos nas sessões mais fortes.",
+    tags: ["general", "timing", "hydration"],
+  },
+  hiit: {
+    energy: "Déficit pequeno ou manutenção: HIIT perde qualidade quando a energia cai demais.",
+    protein: [1.6, 2.2],
+    carbs: [3, 5],
+    fat: [0.7, 1],
+    focus: "Use carboidratos fáceis antes dos blocos intensos e proteína depois.",
+    tags: ["timing", "bodycomp", "protein"],
+  },
+  mobilidade: {
+    energy: "Manutenção de saúde: foco em regularidade, micronutrientes e hidratação.",
+    protein: [1.4, 1.8],
+    carbs: [2, 4],
+    fat: [0.7, 1],
+    focus: "Pratos simples, fibras, boas gorduras e proteína suficiente para recuperação.",
+    tags: ["general", "safety"],
+  },
+  default: {
+    energy: "Manutenção ajustável: suba ou desça porções conforme peso, energia e desempenho.",
+    protein: [1.6, 2],
+    carbs: [3, 5],
+    fat: [0.7, 1],
+    focus: "Construa consistência: proteína, vegetais, carboidrato útil e água todos os dias.",
+    tags: ["general", "protein", "timing"],
+  },
+};
+
+const dietStyleNotes = {
+  balanced: "Baseie a semana em comida de verdade: proteína magra, grãos ou raízes, frutas, legumes, verduras e gorduras boas.",
+  highProtein: "Distribua proteína em 3-5 refeições e mantenha fibras para saciedade, intestino e aderência.",
+  plantBased: "Combine leguminosas, soja/tofu/tempeh, grãos, sementes e atenção a B12, ferro, cálcio e ômega-3.",
+  lowCarb: "Use com cautela: mantenha carboidratos perto dos treinos intensos, principalmente corrida e HIIT.",
+};
+
+const foodPatternLibrary = {
+  omnivore: {
+    proteins: "ovos, frango, peixes, carne magra, iogurte, leite, whey, feijão",
+    carbs: "arroz, batata, mandioca, aveia, frutas, macarrão, pão integral",
+    fats: "azeite, abacate, castanhas, gemas, peixes gordos",
+    colors: "verduras, legumes, frutas e feijões todos os dias",
+  },
+  vegetarian: {
+    proteins: "ovos, iogurte, leite, queijos, tofu, tempeh, feijão, lentilha, grão-de-bico",
+    carbs: "arroz, aveia, batata, mandioca, frutas, pão integral, massas",
+    fats: "azeite, abacate, castanhas, sementes, pasta de amendoim",
+    colors: "folhas, legumes, frutas cítricas e leguminosas variadas",
+  },
+  vegan: {
+    proteins: "tofu, tempeh, proteína de soja/ervilha, feijão, lentilha, grão-de-bico, ervilha",
+    carbs: "arroz, aveia, batata, mandioca, frutas, massas, quinoa",
+    fats: "azeite, abacate, castanhas, chia, linhaça, tahine",
+    colors: "folhas verdes, legumes coloridos, frutas e fontes de ferro com vitamina C",
+  },
+  lactoseFree: {
+    proteins: "ovos, frango, peixes, carne magra, tofu, feijão, whey isolado sem lactose",
+    carbs: "arroz, batata, mandioca, aveia, frutas, massas, pão",
+    fats: "azeite, abacate, castanhas, sementes, peixes gordos",
+    colors: "verduras, legumes, frutas e feijões com cálcio de fontes sem lactose",
+  },
+};
+
+const nutritionArticles = [
+  {
+    title: "Guia Alimentar para a População Brasileira",
+    source: "Ministério da Saúde",
+    url: "https://www.gov.br/saude/pt-br/composicao/saps/promocao-da-saude/guias-alimentares/guias-alimentares",
+    why: "Base prática para priorizar alimentos in natura, refeições simples e menor uso de ultraprocessados.",
+    tags: ["general", "foodQuality", "safety"],
+  },
+  {
+    title: "Healthy diet",
+    source: "Organização Mundial da Saúde",
+    url: "https://www.who.int/news-room/fact-sheets/detail/healthy-diet",
+    why: "Referência global para frutas, vegetais, sal, açúcar, gorduras e prevenção de doenças crônicas.",
+    tags: ["general", "safety"],
+  },
+  {
+    title: "ISSN position stand: protein and exercise",
+    source: "Journal of the International Society of Sports Nutrition",
+    url: "https://jissn.biomedcentral.com/articles/10.1186/s12970-017-0177-8",
+    why: "Define faixas úteis de proteína para treino, hipertrofia, força, saciedade e recuperação.",
+    tags: ["protein", "strength", "bodycomp"],
+  },
+  {
+    title: "ISSN position stand: nutrient timing",
+    source: "Journal of the International Society of Sports Nutrition",
+    url: "https://jissn.biomedcentral.com/articles/10.1186/s12970-017-0189-4",
+    why: "Organiza pré e pós-treino com proteína e carboidrato conforme duração e intensidade.",
+    tags: ["timing", "strength", "endurance"],
+  },
+  {
+    title: "ISSN position stand: diets and body composition",
+    source: "Journal of the International Society of Sports Nutrition",
+    url: "https://jissn.biomedcentral.com/articles/10.1186/s12970-017-0174-y",
+    why: "Compara estratégias de dieta e reforça aderência, proteína e balanço energético.",
+    tags: ["bodycomp", "general", "protein"],
+  },
+  {
+    title: "Nutrition and Athletic Performance",
+    source: "ACSM, Academy of Nutrition and Dietetics, Dietitians of Canada",
+    url: "https://pubmed.ncbi.nlm.nih.gov/26920240/",
+    why: "Síntese clássica para carboidratos, proteína, gordura, hidratação e performance.",
+    tags: ["performance", "endurance", "strength"],
+  },
+  {
+    title: "IOC consensus statement on REDs",
+    source: "British Journal of Sports Medicine",
+    url: "https://bjsm.bmj.com/content/57/17/1073",
+    why: "Segurança contra baixa disponibilidade energética, queda imune e fadiga persistente.",
+    tags: ["safety", "endurance", "bodycomp"],
+  },
+  {
+    title: "ACSM position stand: exercise and fluid replacement",
+    source: "American College of Sports Medicine",
+    url: "https://pubmed.ncbi.nlm.nih.gov/17277604/",
+    why: "Base para hidratação, reposição de fluidos e controle de perdas pelo suor.",
+    tags: ["hydration", "performance", "safety"],
+  },
+];
+
 const movementLinks = {
   "Agachamento livre": "https://www.youtube.com/results?search_query=como+fazer+agachamento+livre+correto",
   "Supino reto": "https://www.youtube.com/results?search_query=como+fazer+supino+reto+correto",
@@ -374,6 +572,11 @@ function readProfile() {
     days: Number($("daysPerWeek").value),
     length: $("planLength").value,
     duration: Number($("duration").value),
+    bodyWeight: clampNumber(Number($("bodyWeight").value), 35, 250, nutritionDefaults.bodyWeight),
+    dietStyle: $("dietStyle").value || nutritionDefaults.dietStyle,
+    mealsPerDay: clampNumber(Number($("mealsPerDay").value), 3, 6, nutritionDefaults.mealsPerDay),
+    foodPattern: $("foodPattern").value || nutritionDefaults.foodPattern,
+    dietRestrictions: $("dietRestrictions").value.trim(),
     notes: $("notes").value.trim(),
   };
 }
@@ -521,6 +724,153 @@ function renderWorkout() {
       `
     )
     .join("");
+  renderNutrition(day);
+}
+
+
+function renderNutrition(day) {
+  const title = $("nutritionTitle");
+  if (!title || !state.profile?.name) return;
+
+  const profile = normalizeNutritionProfile(state.profile);
+  const target = nutritionTargetFor(profile);
+  const foods = foodPatternLibrary[profile.foodPattern] || foodPatternLibrary.omnivore;
+  const selectedArticles = selectNutritionArticles(profile, target);
+  const restDay = day?.isRest;
+
+  title.textContent = `${profile.name} · dieta ${dietStyleLabels[profile.dietStyle] || "Equilibrada"}`;
+  $("nutritionIntro").textContent = `${target.energy} ${target.focus}`;
+  $("nutritionStatus").textContent = `${profile.bodyWeight} kg · ${profile.mealsPerDay} refeições`;
+
+  $("nutritionMetrics").innerHTML = [
+    metricCard("Proteína", formatGramRange(profile.bodyWeight, target.protein), `${target.protein[0]}-${target.protein[1]} g/kg`),
+    metricCard("Carboidratos", formatGramRange(profile.bodyWeight, target.carbs), `${target.carbs[0]}-${target.carbs[1]} g/kg`),
+    metricCard("Gorduras", formatGramRange(profile.bodyWeight, target.fat), `${target.fat[0]}-${target.fat[1]} g/kg`),
+    metricCard("Água", formatWaterRange(profile.bodyWeight), "30-40 ml/kg"),
+  ].join("");
+
+  $("nutritionStrategy").innerHTML = `
+    <p>${dietStyleNotes[profile.dietStyle] || dietStyleNotes.balanced}</p>
+    <ul class="nutrition-list">
+      <li>${target.energy}</li>
+      <li>Distribua proteína em ${profile.mealsPerDay} refeições para facilitar síntese muscular e saciedade.</li>
+      <li>Use o peso e a performance semanal para ajustar porções, não apenas a balança do dia.</li>
+    </ul>
+  `;
+
+  $("nutritionFoods").innerHTML = `
+    <div class="food-stack">
+      <span><strong>Proteínas:</strong> ${foods.proteins}</span>
+      <span><strong>Carboidratos:</strong> ${foods.carbs}</span>
+      <span><strong>Gorduras:</strong> ${foods.fats}</span>
+      <span><strong>Cores e fibras:</strong> ${foods.colors}</span>
+    </div>
+    <p class="muted-text">Preferência atual: ${foodPatternLabels[profile.foodPattern] || "Onívora"}.</p>
+  `;
+
+  $("nutritionTiming").innerHTML = `
+    <ul class="nutrition-list">
+      <li>${restDay ? "Dia de recuperação: mantenha proteína, vegetais, água e carboidratos moderados." : preWorkoutText(profile)}</li>
+      <li>${restDay ? "Se houver caminhada leve, uma refeição normal já resolve." : postWorkoutText(profile)}</li>
+      <li>${mealCadenceText(profile.mealsPerDay)}</li>
+    </ul>
+  `;
+
+  const restrictionNote = profile.dietRestrictions
+    ? `Sinalizado no formulário: ${escapeHtml(profile.dietRestrictions)}`
+    : "Ajuste com nutricionista em caso de diabetes, doença renal, gestação, transtorno alimentar, medicação ou condição clínica.";
+  $("nutritionWarning").innerHTML = `<strong>Segurança:</strong> ${restrictionNote}`;
+
+  $("nutritionSources").innerHTML = selectedArticles
+    .map(
+      (article) => `
+        <a class="source-card" href="${article.url}" target="_blank" rel="noreferrer">
+          <span>${article.source}</span>
+          <strong>${article.title}</strong>
+          <p>${article.why}</p>
+        </a>
+      `
+    )
+    .join("");
+}
+
+function normalizeNutritionProfile(profile) {
+  return {
+    ...nutritionDefaults,
+    ...profile,
+    bodyWeight: clampNumber(Number(profile.bodyWeight), 35, 250, nutritionDefaults.bodyWeight),
+    mealsPerDay: clampNumber(Number(profile.mealsPerDay), 3, 6, nutritionDefaults.mealsPerDay),
+    dietStyle: dietStyleLabels[profile.dietStyle] ? profile.dietStyle : nutritionDefaults.dietStyle,
+    foodPattern: foodPatternLabels[profile.foodPattern] ? profile.foodPattern : nutritionDefaults.foodPattern,
+    dietRestrictions: String(profile.dietRestrictions || "").trim(),
+  };
+}
+
+function nutritionTargetFor(profile) {
+  return nutritionTargets[profile.goal] || nutritionTargets.default;
+}
+
+function metricCard(label, value, detail) {
+  return `
+    <article class="nutrition-metric">
+      <span>${label}</span>
+      <strong>${value}</strong>
+      <small>${detail}</small>
+    </article>
+  `;
+}
+
+function formatGramRange(weight, range) {
+  return `${Math.round(weight * range[0])}-${Math.round(weight * range[1])} g/dia`;
+}
+
+function formatWaterRange(weight) {
+  const min = Math.round((weight * 30) / 100) / 10;
+  const max = Math.round((weight * 40) / 100) / 10;
+  return `${min}-${max} L/dia`;
+}
+
+function preWorkoutText(profile) {
+  if (profile.modality === "corrida" || profile.goal === "hiit") {
+    return "Pré-treino: 1-3 h antes, carboidrato fácil + proteína leve; em treinos curtos, fruta e água podem bastar.";
+  }
+  if (profile.goal === "forca" || profile.goal === "hipertrofia") {
+    return "Pré-treino: 1-3 h antes, carboidrato + proteína; evite muita gordura se isso pesar no estômago.";
+  }
+  return "Pré-treino: refeição simples com carboidrato, proteína e boa digestão.";
+}
+
+function postWorkoutText(profile) {
+  if (profile.modality === "corrida" || profile.goal === "hiit") {
+    return "Pós-treino: proteína + carboidrato nas próximas horas, especialmente após longão, tiros ou HIIT.";
+  }
+  return "Pós-treino: proteína de qualidade e uma refeição completa; carboidrato ajuda a recuperar volume de treino.";
+}
+
+function mealCadenceText(mealsPerDay) {
+  const options = {
+    3: "Cadência: 3 pratos completos; deixe proteína forte em todas as refeições.",
+    4: "Cadência: café, almoço, lanche estratégico e jantar funcionam bem para a maioria.",
+    5: "Cadência: 3 refeições principais + 2 lanches com proteína ou fruta facilitam bater metas.",
+    6: "Cadência: porções menores e frequentes; útil para muito volume de treino ou apetite baixo.",
+  };
+  return options[mealsPerDay] || options[4];
+}
+
+function selectNutritionArticles(profile, target) {
+  const wanted = new Set(["general", ...target.tags]);
+  if (profile.modality === "corrida") wanted.add("endurance");
+  if (profile.modality === "musculacao") wanted.add("strength");
+  if (profile.dietStyle === "lowCarb" || profile.goal === "emagrecimento") wanted.add("bodycomp");
+  if (profile.goal === "21k" || profile.goal === "10k") wanted.add("hydration");
+
+  return nutritionArticles
+    .map((article, index) => ({
+      ...article,
+      score: article.tags.reduce((sum, tag) => sum + (wanted.has(tag) ? 2 : 0), 0) - index * 0.01,
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 8);
 }
 
 function renderCalendar() {
@@ -665,7 +1015,13 @@ function hydrateFormFromProfile() {
   $("level").value = state.profile.level;
   $("daysPerWeek").value = String(state.profile.days);
   $("planLength").value = state.profile.length;
+  const profile = normalizeNutritionProfile(state.profile);
   $("duration").value = String(state.profile.duration);
+  $("bodyWeight").value = String(profile.bodyWeight);
+  $("dietStyle").value = profile.dietStyle;
+  $("mealsPerDay").value = String(profile.mealsPerDay);
+  $("foodPattern").value = profile.foodPattern;
+  $("dietRestrictions").value = profile.dietRestrictions;
   $("notes").value = state.profile.notes || "";
 }
 
@@ -750,6 +1106,21 @@ function labelFor(value) {
     corrida: "Corrida",
     casa: "Casa sem equipamentos",
   }[value] || value;
+}
+
+
+function clampNumber(value, min, max, fallback) {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(Math.max(value, min), max);
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 function calendarKey(index) {
